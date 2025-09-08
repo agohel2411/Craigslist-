@@ -7,21 +7,21 @@ app = FastAPI()
 with open("data/sale.json") as f:
     data = json.load(f)
 
-@app.get("/pricesorted")
+@app.get("/pricesorted", tags=['Json'])
 def price_sorted():
     sorteddata = sorted(data, key = lambda x: x['price'])
     return sorteddata
 
-@app.get("/singleitem")
+@app.get("/singleitem", tags=['Json'])
 def singleitem(id: str | None = None, long: float | None = None, lat: float | None = None):
     return [person for person in data if ((person['id']==id) or (person['loc']==[long,lat]))]
 
-@app.get("/list")
+@app.get("/list", tags=['Json'])
 def listitem(status: str | None = None, userId: str | None = None):
     return [person for person in data if ((person['status']==status) or (person['userId']==userId))]
 
 import math
-@app.get("/multifilter")
+@app.get("/multifilter", tags=['Json'])
 def multifilter(filter: str, upper: int | None = None, lower: int | None = None, words: str | None = None, radius: float | None = None, latitude: float | None = None, longitude: float | None = None):
     if filter == 'price':
         return [person for person in data if ((person[filter]>lower) and (person[filter]<upper))]
@@ -57,7 +57,7 @@ def multifilter(filter: str, upper: int | None = None, lower: int | None = None,
 
         return lst
         
-@app.get("/radius")
+@app.get("/radius", tags=['Json'])
 def radius(radius: float, latitude: float, longitude: float):
     R = 6371
 
@@ -84,3 +84,4 @@ def radius(radius: float, latitude: float, longitude: float):
             lst.append(person)
 
     return len(lst)
+
