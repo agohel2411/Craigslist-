@@ -147,3 +147,38 @@ def radiusdb(radius: float, latitude: float, longitude: float, db: Session = Dep
             lst.append(user)
 
     return [user.__dict__ for user in lst]
+
+@app.get("/multifilterdb", tags=['SQL Db'])
+def multifilterdb(filter: str, upper: int | None = None, lower: int | None = None, words: str | None = None, radius: float | None = None, latitude: float | None = None, longitude: float | None = None, db: Session = Depends(get_db)):
+    if filter == 'price':
+        blog = db.query(Sales).filter(and_(Sales.price>lower, Sales.price<upper)).all()
+        return blog
+    elif filter == 'desc':
+        blog = db.query(Sales).filter(Sales.description.like(f'%{words}%')).all()
+        return blog
+    elif filter == 'radius':
+        R = 6371
+
+        lat1_rad = math.radians(latitude)
+        lon1_rad = math.radians(longitude)
+        lst = []
+
+        users = db.query(Sales).all()
+
+        for user in users:
+            lat2_rad = math.radians(user.lat)
+            lon2_rad = math.radians(user.long)
+
+            dlon = lon2_rad - lon1_rad
+            dlat = lat2_rad - lat1_rad
+
+            # Haversine formula
+            a = math.sin(dlat / 2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2)**2
+            c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+            distance = R * c
+
+            if distance<radius:
+                lst.append(user)
+
+        return [user.__dict__ for user in lst]
