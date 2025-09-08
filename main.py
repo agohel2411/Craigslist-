@@ -13,5 +13,9 @@ def price_sorted():
     return sorteddata
 
 @app.get("/singleitem")
-def singleitem(id: str | None = None, long: float | None = None, lat: float | None = None): # type: ignore
+def singleitem(id: str | None = None, long: float | None = None, lat: float | None = None):
     return [person for person in data if ((person['id']==id) or (person['loc']==[long,lat]))]
+
+@app.get("/list")
+def listitem(status: str | None = None, userId: str | None = None):
+    return [person for person in data if ((person['status']==status) or (person['userId']==userId))]
