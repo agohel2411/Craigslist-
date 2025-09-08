@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 
 class SaleSchema(BaseModel):
+    sr: int
     id : str
     lat : float
     long : float
@@ -10,4 +11,4 @@ class SaleSchema(BaseModel):
     status : str
 
     class Config:
-        orm_mode = True
+        rom_attributes = True

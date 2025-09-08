@@ -85,3 +85,25 @@ def radius(radius: float, latitude: float, longitude: float):
 
     return len(lst)
 
+from src import schema, model
+from sqlalchemy.orm import Session
+from fastapi import Depends
+from src.model import Sales
+from src.database import Base, SessionLocal, engine
+
+model.Base.metadata.create_all(bind=engine)
+
+db = SessionLocal()
+
+def get_db():
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+@app.get("/pricesorteddb", tags=['SQL Db'])
+def pricesorted(db: Session = Depends(get_db)):
+    
+    blog = db.query(Sales).order_by(Sales.price).all()
+    return blog

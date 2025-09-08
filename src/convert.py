@@ -1,8 +1,7 @@
-from database import Base, engine, SessionLocal
+from database import engine, SessionLocal
 import json
 from model import Sales ## base model
 import model
-from schema import SaleSchema ## pydantic schema
 
 db = SessionLocal()
 
