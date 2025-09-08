@@ -114,3 +114,8 @@ from sqlalchemy import or_, and_
 def singleitem(id: str | None = None, lat: float | None = None, long: float | None = None, db: Session = Depends(get_db)):
     blog = db.query(Sales).filter(or_(Sales.id==id, and_(Sales.lat==lat, Sales.long==long))).all()
     return blog
+
+@app.get("/listdb", tags=['SQL Db'])
+def listitemdb(status: str | None = None, userId: str | None = None, db: Session = Depends(get_db)):
+    blog = db.query(Sales).filter(or_(Sales.status==status, Sales.userId==userId)).all()
+    return blog
