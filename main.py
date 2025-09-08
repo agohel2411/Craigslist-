@@ -107,3 +107,10 @@ def pricesorted(db: Session = Depends(get_db)):
     
     blog = db.query(Sales).order_by(Sales.price).all()
     return blog
+
+from sqlalchemy import or_, and_
+
+@app.get("/singleitemdb", tags=['SQL Db'])
+def singleitem(id: str | None = None, lat: float | None = None, long: float | None = None, db: Session = Depends(get_db)):
+    blog = db.query(Sales).filter(or_(Sales.id==id, and_(Sales.lat==lat, Sales.long==long))).all()
+    return blog
