@@ -119,3 +119,31 @@ def singleitem(id: str | None = None, lat: float | None = None, long: float | No
 def listitemdb(status: str | None = None, userId: str | None = None, db: Session = Depends(get_db)):
     blog = db.query(Sales).filter(or_(Sales.status==status, Sales.userId==userId)).all()
     return blog
+
+@app.get("/radiusdb", tags=['SQL Db'])
+def radiusdb(radius: float, latitude: float, longitude: float, db: Session = Depends(get_db)):
+    R = 6371
+
+    lat1_rad = math.radians(latitude)
+    lon1_rad = math.radians(longitude)
+    lst = []
+
+    users = db.query(Sales).all()
+
+    for user in users:
+        lat2_rad = math.radians(user.lat)
+        lon2_rad = math.radians(user.long)
+
+        dlon = lon2_rad - lon1_rad
+        dlat = lat2_rad - lat1_rad
+
+        # Haversine formula
+        a = math.sin(dlat / 2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2)**2
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+        distance = R * c
+
+        if distance<radius:
+            lst.append(user)
+
+    return [user.__dict__ for user in lst]
