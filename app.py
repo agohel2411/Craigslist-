@@ -59,41 +59,47 @@ def listitem(status: str | None = None, userid: str | None = None):
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
-@app.get("/multifilter", tags=['Json'])
-def multifilter(filter: str, upper: int | None = None, lower: int | None = None, words: str | None = None, radius: float | None = None, latitude: float | None = None, longitude: float | None = None):
-    if filter == 'price':
-        return [person for person in data if ((person[filter]>lower) and (person[filter]<upper))]
-    elif filter == 'desc':
-        for person in data:
-            if person['description'] != None:
-                if words in person['description']:
-                    return person
-    elif filter == 'radius':
-        R = 6371
+@app.get("/get_items_by_filter", tags=['Json'], status_code=status.HTTP_202_ACCEPTED)
+def multifilter(filterby: str, upper: int | None = None, lower: int | None = None, words: str | None = None, radius: float | None = None, latitude: float | None = None, longitude: float | None = None):
+    try:    
+        if filterby == 'price':
+            if lower>upper:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid parameters: Upper value cannot be less than lower")
+            return [person for person in data if ((person[filter]>lower) and (person[filter]<upper))]
+        elif filterby == 'desc':
+            for person in data:
+                if person['description'] != None:
+                    if words in person['description']:
+                        return person
+        elif filterby == 'radius':
+            R = 6371
 
-        lat1_rad = math.radians(latitude)
-        lon1_rad = math.radians(longitude)
-        lst = []
+            lat1_rad = math.radians(latitude)
+            lon1_rad = math.radians(longitude)
+            lst = []
 
-        for person in data:
-            coordinates = person['loc']
-            lat2_rad = math.radians(coordinates[0])
-            lon2_rad = math.radians(coordinates[1])
+            for person in data:
+                coordinates = person['loc']
+                lat2_rad = math.radians(coordinates[0])
+                lon2_rad = math.radians(coordinates[1])
 
-            dlon = lon2_rad - lon1_rad
-            dlat = lat2_rad - lat1_rad
+                dlon = lon2_rad - lon1_rad
+                dlat = lat2_rad - lat1_rad
 
-            # Haversine formula
-            a = math.sin(dlat / 2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2)**2
-            c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+                # Haversine formula
+                a = math.sin(dlat / 2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2)**2
+                c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
-            distance = R * c
-            
+                distance = R * c
+                
+                if distance<radius:
+                    lst.append(person)
 
-            if distance<radius:
-                lst.append(person)
-
-        return lst
+            return lst
+        else:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Parameter: Please provide valid filter")
+    except Exception as e:
+         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
         
 @app.get("/radius", tags=['Json'])
 def radius(radius: float, latitude: float, longitude: float):
