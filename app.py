@@ -1,12 +1,11 @@
 from fastapi import FastAPI
-from typing import Optional
 import json
 import math
-from src import schema, model
+from src import model
 from sqlalchemy.orm import Session
 from fastapi import Depends,status
 from src.model import Sales
-from src.database import Base, SessionLocal, engine
+from src.database import SessionLocal, engine
 from fastapi import HTTPException
 from sqlalchemy import desc, or_, and_
 
@@ -21,6 +20,8 @@ def get_db():
         db.close()
 
 app = FastAPI()
+
+## JSON File Handeling
 
 with open("data/sale.json") as f:
     data = json.load(f)
@@ -134,7 +135,7 @@ def multifilter(filterby: str, upper: int | None = None, lower: int | None = Non
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
         
 
-
+## SQL File Handeling
 
 @app.get("/getsorteddatadb", tags=['SQL Db'], status_code=status.HTTP_202_ACCEPTED)
 def pricesorted(reverse: bool, criteria: str, db: Session = Depends(get_db)):
