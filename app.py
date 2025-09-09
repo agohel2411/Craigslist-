@@ -43,6 +43,9 @@ def price_sorted(reverse: bool, criteria = str):
 @app.get("/getitem", tags=['Json'], status_code=status.HTTP_202_ACCEPTED)
 def singleitem(id: str | None = None, long: float | None = None, lat: float | None = None):
     try:
+        if (not id) and (not lat) and (not long):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Provide any one parameter to proceed")
+        
         return [person for person in data if ((person['id']==id) or (person['loc']==[long,lat]))]
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
