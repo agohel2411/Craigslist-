@@ -162,10 +162,13 @@ def singleitem(id: str | None = None, lat: float | None = None, long: float | No
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
-@app.get("/listdb", tags=['SQL Db'])
-def listitemdb(status: str | None = None, userId: str | None = None, db: Session = Depends(get_db)):
-    blog = db.query(Sales).filter(or_(Sales.status==status, Sales.userId==userId)).all()
-    return blog
+@app.get("/getitemistdb", tags=['SQL Db'])
+def listitemdb(status: str | None = None, userid: str | None = None, db: Session = Depends(get_db)):
+    try:
+        blog = db.query(Sales).filter(or_(Sales.status==status, Sales.userId==userid)).all()
+        if (not status) and (not userid):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Criteria: Provide any one parameter (status -- or -- userid) to proceed")
+        return blog
 
 @app.get("/radiusdb", tags=['SQL Db'])
 def radiusdb(radius: float, latitude: float, longitude: float, db: Session = Depends(get_db)):
