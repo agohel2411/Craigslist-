@@ -11,4 +11,4 @@ class SaleSchema(BaseModel):
     status : str
 
     class Config:
-        rom_attributes = True
+        from_attributes = True

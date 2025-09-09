@@ -1,16 +1,44 @@
 from fastapi import FastAPI
 from typing import Optional
 import json
+import math
+from src import schema, model
+from sqlalchemy.orm import Session
+from fastapi import Depends,status
+from src.model import Sales
+from src.database import Base, SessionLocal, engine
+from fastapi import HTTPException
+
+model.Base.metadata.create_all(bind=engine)
+
+db = SessionLocal()
+
+def get_db():
+    try:
+        yield db
+    finally:
+        db.close()
 
 app = FastAPI()
 
 with open("data/sale.json") as f:
     data = json.load(f)
 
-@app.get("/pricesorted", tags=['Json'])
-def price_sorted():
-    sorteddata = sorted(data, key = lambda x: x['price'])
-    return sorteddata
+@app.get("/getsorteddata", tags=['Json'], status_code=status.HTTP_202_ACCEPTED)
+def price_sorted(reverse: bool, criteria = str):
+    try:
+        sorteddata = sorted(data, key=lambda x: x[criteria], reverse=reverse)
+
+        if sorteddata:
+            return sorteddata
+        else:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No data found")
+
+    except KeyError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid sort criteria: '{criteria}'")
+
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 @app.get("/singleitem", tags=['Json'])
 def singleitem(id: str | None = None, long: float | None = None, lat: float | None = None):
@@ -20,7 +48,6 @@ def singleitem(id: str | None = None, long: float | None = None, lat: float | No
 def listitem(status: str | None = None, userId: str | None = None):
     return [person for person in data if ((person['status']==status) or (person['userId']==userId))]
 
-import math
 @app.get("/multifilter", tags=['Json'])
 def multifilter(filter: str, upper: int | None = None, lower: int | None = None, words: str | None = None, radius: float | None = None, latitude: float | None = None, longitude: float | None = None):
     if filter == 'price':
@@ -85,21 +112,6 @@ def radius(radius: float, latitude: float, longitude: float):
 
     return len(lst)
 
-from src import schema, model
-from sqlalchemy.orm import Session
-from fastapi import Depends
-from src.model import Sales
-from src.database import Base, SessionLocal, engine
-
-model.Base.metadata.create_all(bind=engine)
-
-db = SessionLocal()
-
-def get_db():
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 @app.get("/pricesorteddb", tags=['SQL Db'])
