@@ -44,7 +44,7 @@ def price_sorted(reverse: bool, criteria: str):
 @app.get("/getitem", tags=['Json'], status_code=status.HTTP_202_ACCEPTED)
 def singleitem(id: str | None = None, long: float | None = None, lat: float | None = None):
     try:
-        if (not id) and (not lat) and (not long):
+        if (not id) or (not lat) or (not long):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid criteria: Provide any one parameter to proceed")
         
         return [person for person in data if ((person['id']==id) or (person['loc']==[long,lat]))]
@@ -152,10 +152,15 @@ def pricesorted(reverse: bool, criteria: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
-@app.get("/singleitemdb", tags=['SQL Db'])
+@app.get("/getitemdb", tags=['SQL Db'], status_code=status.HTTP_202_ACCEPTED)
 def singleitem(id: str | None = None, lat: float | None = None, long: float | None = None, db: Session = Depends(get_db)):
-    blog = db.query(Sales).filter(or_(Sales.id==id, and_(Sales.lat==lat, Sales.long==long))).all()
-    return blog
+    try:
+        if (not id) or (not lat) or (not long):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid criteria: Provide any one parameter to proceed")
+        blog = db.query(Sales).filter(or_(Sales.id==id, and_(Sales.lat==lat, Sales.long==long))).all()
+        return blog
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 @app.get("/listdb", tags=['SQL Db'])
 def listitemdb(status: str | None = None, userId: str | None = None, db: Session = Depends(get_db)):
