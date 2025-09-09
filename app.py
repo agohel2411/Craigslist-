@@ -44,15 +44,20 @@ def price_sorted(reverse: bool, criteria = str):
 def singleitem(id: str | None = None, long: float | None = None, lat: float | None = None):
     try:
         if (not id) and (not lat) and (not long):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Provide any one parameter to proceed")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid criteria: Provide any one parameter to proceed")
         
         return [person for person in data if ((person['id']==id) or (person['loc']==[long,lat]))]
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
-@app.get("/list", tags=['Json'])
-def listitem(status: str | None = None, userId: str | None = None):
-    return [person for person in data if ((person['status']==status) or (person['userId']==userId))]
+@app.get("/getitemlist", tags=['Json'], status_code=status.HTTP_202_ACCEPTED)
+def listitem(status: str | None = None, userid: str | None = None):
+    try:
+        if (not status) and (not userid):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Criteria: Provide any one parameter (status -- or -- userid) to proceed")
+        return [person for person in data if ((person['status']==status) or (person['userId']==userid))]
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 @app.get("/multifilter", tags=['Json'])
 def multifilter(filter: str, upper: int | None = None, lower: int | None = None, words: str | None = None, radius: float | None = None, latitude: float | None = None, longitude: float | None = None):
