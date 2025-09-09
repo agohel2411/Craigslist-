@@ -162,41 +162,46 @@ def singleitem(id: str | None = None, lat: float | None = None, long: float | No
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
-@app.get("/getitemistdb", tags=['SQL Db'])
+@app.get("/getitemistdb", tags=['SQL Db'], status_code=status.HTTP_202_ACCEPTED)
 def listitemdb(status: str | None = None, userid: str | None = None, db: Session = Depends(get_db)):
     try:
         blog = db.query(Sales).filter(or_(Sales.status==status, Sales.userId==userid)).all()
         if (not status) and (not userid):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Criteria: Provide any one parameter (status -- or -- userid) to proceed")
         return blog
-
-@app.get("/radiusdb", tags=['SQL Db'])
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+    
+@app.get("/get_items_in_radiusdb", tags=['SQL Db'], status_code=status.HTTP_202_ACCEPTED)
 def radiusdb(radius: float, latitude: float, longitude: float, db: Session = Depends(get_db)):
-    R = 6371
+    try:    
+        R = 6371
 
-    lat1_rad = math.radians(latitude)
-    lon1_rad = math.radians(longitude)
-    lst = []
+        lat1_rad = math.radians(latitude)
+        lon1_rad = math.radians(longitude)
+        lst = []
 
-    users = db.query(Sales).all()
+        users = db.query(Sales).all()
 
-    for user in users:
-        lat2_rad = math.radians(user.lat)
-        lon2_rad = math.radians(user.long)
+        for user in users:
+            lat2_rad = math.radians(user.lat)
+            lon2_rad = math.radians(user.long)
 
-        dlon = lon2_rad - lon1_rad
-        dlat = lat2_rad - lat1_rad
+            dlon = lon2_rad - lon1_rad
+            dlat = lat2_rad - lat1_rad
 
-        # Haversine formula
-        a = math.sin(dlat / 2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2)**2
-        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+            # Haversine formula
+            a = math.sin(dlat / 2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2)**2
+            c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
-        distance = R * c
+            distance = R * c
 
-        if distance<radius:
-            lst.append(user)
+            if distance<radius:
+                lst.append(user)
 
-    return [user.__dict__ for user in lst]
+        return [user.__dict__ for user in lst]
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 @app.get("/multifilterdb", tags=['SQL Db'])
 def multifilterdb(filter: str, upper: int | None = None, lower: int | None = None, words: str | None = None, radius: float | None = None, latitude: float | None = None, longitude: float | None = None, db: Session = Depends(get_db)):
