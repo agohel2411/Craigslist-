@@ -1,13 +1,13 @@
-from database import engine, SessionLocal
+from src.database import engine, SessionLocal
 import json
-from model import Sales ## base model
-import model
+from src.model import Sales ## base model
+from src import model
 
 db = SessionLocal()
 
 model.Base.metadata.create_all(bind=engine)
 
-with open("./data/sale.json") as f:
+with open("data/sale.json") as f:
     data = json.load(f)
 
 
