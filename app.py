@@ -8,6 +8,7 @@ from fastapi import Depends,status
 from src.model import Sales
 from src.database import Base, SessionLocal, engine
 from fastapi import HTTPException
+from sqlalchemy import desc, or_, and_
 
 model.Base.metadata.create_all(bind=engine)
 
@@ -25,7 +26,7 @@ with open("data/sale.json") as f:
     data = json.load(f)
 
 @app.get("/getsorteddata", tags=['Json'], status_code=status.HTTP_202_ACCEPTED)
-def price_sorted(reverse: bool, criteria = str):
+def price_sorted(reverse: bool, criteria: str):
     try:
         sorteddata = sorted(data, key=lambda x: x[criteria], reverse=reverse)
 
@@ -134,13 +135,22 @@ def multifilter(filterby: str, upper: int | None = None, lower: int | None = Non
         
 
 
-@app.get("/pricesorteddb", tags=['SQL Db'])
-def pricesorted(db: Session = Depends(get_db)):
-    
-    blog = db.query(Sales).order_by(Sales.price).all()
-    return blog
 
-from sqlalchemy import or_, and_
+@app.get("/getsorteddatadb", tags=['SQL Db'], status_code=status.HTTP_202_ACCEPTED)
+def pricesorted(reverse: bool, criteria: str, db: Session = Depends(get_db)):
+    try:
+        column = getattr(Sales, criteria)
+        order = desc(column) if reverse else column
+        sorteddata = db.query(Sales).order_by(order).all()
+        if sorteddata:
+            return sorteddata
+        else:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No data found")
+    except AttributeError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid sort criteria: {criteria}")
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
 
 @app.get("/singleitemdb", tags=['SQL Db'])
 def singleitem(id: str | None = None, lat: float | None = None, long: float | None = None, db: Session = Depends(get_db)):
