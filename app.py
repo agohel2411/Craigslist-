@@ -40,9 +40,12 @@ def price_sorted(reverse: bool, criteria = str):
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
-@app.get("/singleitem", tags=['Json'])
+@app.get("/getitem", tags=['Json'], status_code=status.HTTP_202_ACCEPTED)
 def singleitem(id: str | None = None, long: float | None = None, lat: float | None = None):
-    return [person for person in data if ((person['id']==id) or (person['loc']==[long,lat]))]
+    try:
+        return [person for person in data if ((person['id']==id) or (person['loc']==[long,lat]))]
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 @app.get("/list", tags=['Json'])
 def listitem(status: str | None = None, userId: str | None = None):
