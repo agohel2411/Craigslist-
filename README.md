@@ -23,7 +23,7 @@ pip3 install -r requirements.txt
 ### To create sqlite database from json, run:
 
 ```bash
-python3 -m convert.py 
+python3 convert.py 
 ```
 table.db database file will be added to main folder with sales table.
 
