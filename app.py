@@ -9,7 +9,7 @@ from src.database import SessionLocal, engine
 from fastapi import HTTPException
 from sqlalchemy import desc, or_, and_
 from src.log import logger
-
+import fastapi
 model.Base.metadata.create_all(bind=engine)
 
 db = SessionLocal()
@@ -59,7 +59,7 @@ def singleitem(id: str | None = None, long: float | None = None, lat: float | No
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid criteria: Provide any one parameter to proceed")
         
         logger.info(f"Successfully returned data containing {'id' if id else 'location'} in /getitem (json)")
-        return [person for person in data if ((person['id']==id) or (person['loc']==[long,lat]))]
+        return [person for person in data if ((person['id']==id) and (person['loc']==[long,lat]) if id and (lat and long) else (person['id']==id) or (person['loc']==[long,lat]))]
     except Exception as e:
         logger.error(f"Error raised in /getitem: {str(e)} (json)")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
@@ -70,13 +70,13 @@ def listitem(status: str | None = None, userid: str | None = None):
     try:
         if (not status) and (not userid):
             logger.error("Any parameter not provided in /getitemlist (json)")
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Criteria: Provide any one parameter (status -- or -- userid) to proceed")
+            raise HTTPException(status_code=fastapi.status.HTTP_400_BAD_REQUEST, detail="Invalid Criteria: Provide any one parameter (status -- or -- userid) to proceed")
         
         logger.info(f"Successfully returned data of having {status} status and {userid} userId in /getitemlist (josn)")
-        return [person for person in data if ((person['status']==status) or (person['userId']==userid) if status or userid else (person['status']==status) and (person['iserId']==userid))]
+        return [person for person in data if ((person['status']==status) and (person['userId']==userid) if status and userid else (person['status']==status) or (person['iserId']==userid))]
     except Exception as e:
         logger.error(f"Error raised in /getitemlist: {str(e)} (json)")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(status_code=fastapi.status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 @app.get("/get_items_in_radius", tags=['Json'], status_code=status.HTTP_202_ACCEPTED)
 def radius(radius: float, latitude: float, longitude: float):
@@ -113,7 +113,9 @@ def radius(radius: float, latitude: float, longitude: float):
 
 @app.get("/get_items_by_filter", tags=['Json'], status_code=status.HTTP_202_ACCEPTED)
 def multifilter(filterby: str, upper: int | None = None, lower: int | None = None, words: str | None = None, radius: float | None = None, latitude: float | None = None, longitude: float | None = None):
-
+    price = [person['price'] for person in data]
+    upper = upper or max(price)
+    lower = lower or min(price)
     try:    
         if filterby == 'price':
             logger.info(f"Hitted /get_items_by_filter (json): filter = {filterby}, upper = {upper}, lower = {lower}")
@@ -196,7 +198,7 @@ def singleitem(id: str | None = None, lat: float | None = None, long: float | No
         if (not id) and (not lat) and (not long):
             logger.error("Any parameter not provided in /getitemdb (sql)")
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid criteria: Provide any one parameter to proceed")
-        blog = db.query(Sales).filter(or_(Sales.id==id, and_(Sales.lat==lat, Sales.long==long))).all()
+        blog = db.query(Sales).filter(and_(Sales.id==id, and_(Sales.lat==lat, Sales.long==long))if id and (lat and long) else or_(Sales.id==id, and_(Sales.lat==lat, Sales.long==long))).all()
 
         logger.info(f"Successfully returned data containing {'id' if id else 'location'} in /getitemdb (sql)")
         return blog
@@ -208,16 +210,17 @@ def singleitem(id: str | None = None, lat: float | None = None, long: float | No
 def listitemdb(status: str | None = None, userid: str | None = None, db: Session = Depends(get_db)):
     logger.info(f"Hitted /getitemlistdb (sql): {f'status = {status}' if status else f'criteria = {userid}'}")
     try:
-        blog = db.query(Sales).filter(or_(Sales.status==status, Sales.userId==userid)).all()
         if (not status) and (not userid):
             logger.error("Any parameter not provided in /getitemlistdb (sql)")
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Criteria: Provide any one parameter (status -- or -- userid) to proceed")
+            raise HTTPException(status_code=fastapi.status.HTTP_400_BAD_REQUEST, detail="Invalid Criteria: Provide any one parameter (status -- or -- userid) to proceed")
+        
+        blog = db.query(Sales).filter((and_(Sales.status==status, Sales.userId==userid))if status and userid else (or_(Sales.status==status, Sales.userId==userid))).all()
         
         logger.info(f"Successfully returned data of having {status} status and {userid} userId in /getitemlistdb (sql)")
         return blog
     except Exception as e:
         logger.error(f"Error raised in /getitemlistdb:\n {str(e)} (sql)")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(status_code=fastapi.status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
     
 @app.get("/get_items_in_radiusdb", tags=['SQL Db'], status_code=status.HTTP_202_ACCEPTED)
 def radiusdb(radius: float, latitude: float, longitude: float, db: Session = Depends(get_db)):
@@ -255,6 +258,9 @@ def radiusdb(radius: float, latitude: float, longitude: float, db: Session = Dep
 
 @app.get("/get_items_by_filterdb", tags=['SQL Db'], status_code=status.HTTP_202_ACCEPTED)
 def multifilterdb(filterby: str, upper: int | None = None, lower: int | None = None, words: str | None = None, radius: float | None = None, latitude: float | None = None, longitude: float | None = None, db: Session = Depends(get_db)):
+    lower = lower or db.query(Sales).order_by(Sales.price).first()
+    upper = upper or db.query(Sales).order_by(desc(Sales.price)).first()
+
     try:
         if filterby == 'price':
             logger.info(f"Hitted /get_items_by_filterdb (sql): filter = {filterby}, upper = {upper}, lower = {lower}")
