@@ -4,7 +4,7 @@ import json
 import fastapi
 import math
 
-router = APIRouter(tags=["SQL Db"])
+router = APIRouter(tags=["Json"])
 
 with open("data/sale.json") as f:
     data = json.load(f)
