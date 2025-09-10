@@ -114,8 +114,8 @@ def radius(radius: float, latitude: float, longitude: float):
 @app.get("/get_items_by_filter", tags=['Json'], status_code=status.HTTP_202_ACCEPTED)
 def multifilter(filterby: str, upper: int | None = None, lower: int | None = None, words: str | None = None, radius: float | None = None, latitude: float | None = None, longitude: float | None = None):
     price = [person['price'] for person in data]
-    upper = upper or max(price)
-    lower = lower or min(price)
+    if upper is None: upper = max(price)
+    if lower is None: lower = min(price)
 
     if lower>upper:
         logger.error(f"Upper value {upper} less than lower value {lower} in /get_items_by_filter (json)")
@@ -130,7 +130,7 @@ def multifilter(filterby: str, upper: int | None = None, lower: int | None = Non
             logger.info(f"Hitted /get_items_by_filter (json): filter = {filterby}, upper = {upper}, lower = {lower}")
             
             logger.info(f"Successfully returned data having prices from {lower} to {upper} in /get_items_by_filter (json)")
-            return [person for person in data if ((person[filterby]>lower) and (person[filterby]<upper))]
+            return [person for person in data if ((person[filterby]>=lower) and (person[filterby]<=upper))]
         
         elif filterby == 'desc':
             logger.info(f"Hitted /get_items_by_filter (json): filter = {filterby}, words = {words}")
@@ -161,7 +161,7 @@ def multifilter(filterby: str, upper: int | None = None, lower: int | None = Non
 
                 distance = R * c
                 
-                if distance<radius:
+                if distance<=radius:
                     lst.append(person)
 
             logger.info(f"Successfully returned datapoints within radius of {radius}km from location [{latitude},{longitude}] in /get_items_by_filter (json)")
@@ -251,7 +251,7 @@ def radiusdb(radius: float, latitude: float, longitude: float, db: Session = Dep
 
             distance = R * c
 
-            if distance<radius:
+            if distance<=radius:
                 lst.append(user)
 
         logger.info(f"Successfully returned datapoints within radius of {radius}km from location [{latitude},{longitude}] in /get_item_in_radiusdb (sql)")
@@ -280,7 +280,7 @@ def multifilterdb(filterby: str, upper: int = None, lower: int = None, words: st
         if filterby == 'price':
             logger.info(f"Hitted /get_items_by_filterdb (sql): filter = {filterby}, upper = {upper}, lower = {lower}")
             
-            blog = db.query(Sales).filter(and_(Sales.price>lower, Sales.price<upper)).all()
+            blog = db.query(Sales).filter(and_(Sales.price>=lower, Sales.price<=upper)).all()
             logger.info(f"Successfully returned data having prices from {lower} to {upper} in /get_items_by_filterdb (sql)")
             return blog
         elif filterby == 'desc':
@@ -312,7 +312,7 @@ def multifilterdb(filterby: str, upper: int = None, lower: int = None, words: st
 
                 distance = R * c
 
-                if distance<radius:
+                if distance<=radius:
                     lst.append(user)
             logger.info(f"Successfully returned datapoints within radius of {radius}km from location [{latitude},{longitude}] in /get_items_by_filterdb (sql)")
             return [user.__dict__ for user in lst]
