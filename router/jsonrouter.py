@@ -114,11 +114,17 @@ def multifilter(filterby: str, upper: int | None = None, lower: int | None = Non
         
         elif filterby == 'desc':
             logger.info(f"Hitted /get_items_by_filter (json): filter = {filterby}, words = {words}")
+            lst = [word.strip() for word in words.lower().split(",")]
+
+            people = []
             for person in data:
-                if person['description'] != None:
-                    if words in person['description']:
-                        logger.info(f"Successfully returned data containing '{words}' in description from /get_items_by_filter (json)")
-                        return person
+                desc = person['description']
+                if desc != None:
+                    lowerdesc = desc.lower()
+                    if any(word in lowerdesc for word in lst):
+                        people.append(person)
+            logger.info(f"Successfully returned data containing '{words}' in description from /get_items_by_filter (json)")
+            return people
         elif filterby == 'radius':
             logger.info(f"Hitted /get_items_by_filter (json): filter = {filterby}, radius = {upper}, lower = {lower}")
             R = 6371

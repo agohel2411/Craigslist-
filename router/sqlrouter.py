@@ -121,6 +121,8 @@ def multifilterdb(filterby: str, upper: int = None, lower: int = None, words: st
     if filterby not in ['price','desc','radius']:
         logger.error(f"Invalid filter value ({filterby}) provided in /get_items_by_filterdb (sql)")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Parameter: Please provide valid filter")
+    
+    
     try:
         if filterby == 'price':
             logger.info(f"Hitted /get_items_by_filterdb (sql): filter = {filterby}, upper = {upper}, lower = {lower}")
@@ -129,10 +131,15 @@ def multifilterdb(filterby: str, upper: int = None, lower: int = None, words: st
             logger.info(f"Successfully returned data having prices from {lower} to {upper} in /get_items_by_filterdb (sql)")
             return blog
         elif filterby == 'desc':
-            logger.info(f"Hitted /get_items_by_filterdb (sql): filter = {filterby}, words = {words}")
-            blog = db.query(Sales).filter(Sales.description.like(f'%{words}%')).all()
 
-            logger.info(f"Successfully returned data containing '{words}' in description from /get_items_by_filterdb (sql)")
+            lst = [word.strip() for word in words.lower().split(",")]
+            print(lst)
+            word_filter = [Sales.description.like(f'%{word}%') for word in lst]
+            print(word_filter)
+            logger.info(f"Hitted /get_items_by_filterdb (sql): filter = {filterby}, words = {words}")
+            blog = db.query(Sales).filter(or_(*word_filter)).all()
+
+            logger.info(f"Successfully returned data containing {words} in description from /get_items_by_filterdb (sql)")
             return blog
         elif filterby == 'radius':
             logger.info(f"Hitted /get_items_by_filterdb (sql): filter = {filterby}, radius = {upper}, lower = {lower}")
