@@ -7,7 +7,7 @@ from fastapi import Depends,status
 from src.model import Sales
 from src.database import SessionLocal, engine
 from fastapi import HTTPException
-from sqlalchemy import desc, or_, and_
+from sqlalchemy import desc, or_, and_, func
 from src.log import logger
 import fastapi
 model.Base.metadata.create_all(bind=engine)
@@ -53,24 +53,24 @@ def price_sorted(reverse: bool, criteria: str):
 @app.get("/getitem", tags=['Json'], status_code=status.HTTP_202_ACCEPTED)
 def singleitem(id: str | None = None, long: float | None = None, lat: float | None = None):
     logger.info(f"Hitted /getitem (json): {f'id = {id}' if id  else f'lattitude = {lat}, longitude = {long}'}")
-    try:
-        if (not id) and (not lat) and (not long):
-            logger.error("Any parameter not provided in /getitem (josn)")
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid criteria: Provide any one parameter to proceed")
+    if (not id) and (not lat) and (not long):
+        logger.error("Any parameter not provided in /getitem (josn)")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid criteria: Provide any one parameter to proceed")
         
+    try:
         logger.info(f"Successfully returned data containing {'id' if id else 'location'} in /getitem (json)")
         return [person for person in data if ((person['id']==id) and (person['loc']==[long,lat]) if id and (lat and long) else (person['id']==id) or (person['loc']==[long,lat]))]
     except Exception as e:
-        logger.error(f"Error raised in /getitem: {str(e)} (json)")
+        logger.error(f"Error raised in /getitem:\n {str(e)} (json)")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 @app.get("/getitemlist", tags=['Json'], status_code=status.HTTP_202_ACCEPTED)
 def listitem(status: str | None = None, userid: str | None = None):
     logger.info(f"Hitted /getitemlist (json): {f'status = {status}' if status else f'criteria = {userid}'}")
+    if (not status) and (not userid):
+        logger.error("Any parameter not provided in /getitemlist (json)")
+        raise HTTPException(status_code=fastapi.status.HTTP_400_BAD_REQUEST, detail="Invalid Criteria: Provide any one parameter (status -- or -- userid) to proceed")
     try:
-        if (not status) and (not userid):
-            logger.error("Any parameter not provided in /getitemlist (json)")
-            raise HTTPException(status_code=fastapi.status.HTTP_400_BAD_REQUEST, detail="Invalid Criteria: Provide any one parameter (status -- or -- userid) to proceed")
         
         logger.info(f"Successfully returned data of having {status} status and {userid} userId in /getitemlist (josn)")
         return [person for person in data if ((person['status']==status) and (person['userId']==userid) if status and userid else (person['status']==status) or (person['iserId']==userid))]
@@ -116,15 +116,21 @@ def multifilter(filterby: str, upper: int | None = None, lower: int | None = Non
     price = [person['price'] for person in data]
     upper = upper or max(price)
     lower = lower or min(price)
+
+    if lower>upper:
+        logger.error(f"Upper value {upper} less than lower value {lower} in /get_items_by_filter (json)")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid parameters: Upper value cannot be less than lower")
+    
+    if filterby not in ['price','desc','radius']:
+        logger.error(f"Invalid filter value ({filterby}) provided in /get_items_by_filter (json)")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Parameter: Please provide valid filter")
+    
     try:    
         if filterby == 'price':
             logger.info(f"Hitted /get_items_by_filter (json): filter = {filterby}, upper = {upper}, lower = {lower}")
-            if lower>upper:
-                logger.error(f"Upper value {upper} less than lower value {lower} in /get_items_by_filter (json)")
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid parameters: Upper value cannot be less than lower")
             
             logger.info(f"Successfully returned data having prices from {lower} to {upper} in /get_items_by_filter (json)")
-            return [person for person in data if ((person[filter]>lower) and (person[filter]<upper))]
+            return [person for person in data if ((person[filterby]>lower) and (person[filterby]<upper))]
         
         elif filterby == 'desc':
             logger.info(f"Hitted /get_items_by_filter (json): filter = {filterby}, words = {words}")
@@ -160,9 +166,7 @@ def multifilter(filterby: str, upper: int | None = None, lower: int | None = Non
 
             logger.info(f"Successfully returned datapoints within radius of {radius}km from location [{latitude},{longitude}] in /get_items_by_filter (json)")
             return lst
-        else:
-            logger.error(f"Invalid filter value ({filterby}) provided in /get_items_by_filter (json)")
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Parameter: Please provide valid filter")
+            
     except Exception as e:
         logger.error(f"Error raised in /get_items_by_filter: {str(e)} (json)")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
@@ -194,10 +198,10 @@ def pricesorted(reverse: bool, criteria: str, db: Session = Depends(get_db)):
 @app.get("/getitemdb", tags=['SQL Db'], status_code=status.HTTP_202_ACCEPTED)
 def singleitem(id: str | None = None, lat: float | None = None, long: float | None = None, db: Session = Depends(get_db)):
     logger.info(f"Hitted /getitemdb (sql): {f'id = {id}' if id  else f'lattitude = {lat}, longitude = {long}'}")
+    if (not id) and (not lat) and (not long):
+        logger.error("Any parameter not provided in /getitemdb (sql)")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid criteria: Provide any one parameter to proceed")
     try:
-        if (not id) and (not lat) and (not long):
-            logger.error("Any parameter not provided in /getitemdb (sql)")
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid criteria: Provide any one parameter to proceed")
         blog = db.query(Sales).filter(and_(Sales.id==id, and_(Sales.lat==lat, Sales.long==long))if id and (lat and long) else or_(Sales.id==id, and_(Sales.lat==lat, Sales.long==long))).all()
 
         logger.info(f"Successfully returned data containing {'id' if id else 'location'} in /getitemdb (sql)")
@@ -209,10 +213,10 @@ def singleitem(id: str | None = None, lat: float | None = None, long: float | No
 @app.get("/getitemistdb", tags=['SQL Db'], status_code=status.HTTP_202_ACCEPTED)
 def listitemdb(status: str | None = None, userid: str | None = None, db: Session = Depends(get_db)):
     logger.info(f"Hitted /getitemlistdb (sql): {f'status = {status}' if status else f'criteria = {userid}'}")
+    if (not status) and (not userid):
+        logger.error("Any parameter not provided in /getitemlistdb (sql)")
+        raise HTTPException(status_code=fastapi.status.HTTP_400_BAD_REQUEST, detail="Invalid Criteria: Provide any one parameter (status -- or -- userid) to proceed")
     try:
-        if (not status) and (not userid):
-            logger.error("Any parameter not provided in /getitemlistdb (sql)")
-            raise HTTPException(status_code=fastapi.status.HTTP_400_BAD_REQUEST, detail="Invalid Criteria: Provide any one parameter (status -- or -- userid) to proceed")
         
         blog = db.query(Sales).filter((and_(Sales.status==status, Sales.userId==userid))if status and userid else (or_(Sales.status==status, Sales.userId==userid))).all()
         
@@ -257,16 +261,24 @@ def radiusdb(radius: float, latitude: float, longitude: float, db: Session = Dep
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 @app.get("/get_items_by_filterdb", tags=['SQL Db'], status_code=status.HTTP_202_ACCEPTED)
-def multifilterdb(filterby: str, upper: int | None = None, lower: int | None = None, words: str | None = None, radius: float | None = None, latitude: float | None = None, longitude: float | None = None, db: Session = Depends(get_db)):
-    lower = lower or db.query(Sales).order_by(Sales.price).first()
-    upper = upper or db.query(Sales).order_by(desc(Sales.price)).first()
+def multifilterdb(filterby: str, upper: int = None, lower: int = None, words: str | None = None, radius: float | None = None, latitude: float | None = None, longitude: float | None = None, db: Session = Depends(get_db)):
 
+    if lower is None:
+        lower = db.query(func.min(Sales.price)).scalar()
+
+    if upper is None:
+        upper = db.query(func.max(Sales.price)).scalar()
+
+    if lower>upper:
+        logger.error(f"Upper value {upper} less than lower value {lower} in /get_items_by_filterdb (sql)")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid parameters: Upper value cannot be less than lower")
+    
+    if filterby not in ['price','desc','radius']:
+        logger.error(f"Invalid filter value ({filterby}) provided in /get_items_by_filterdb (sql)")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Parameter: Please provide valid filter")
     try:
         if filterby == 'price':
             logger.info(f"Hitted /get_items_by_filterdb (sql): filter = {filterby}, upper = {upper}, lower = {lower}")
-            if lower>upper:
-                logger.error(f"Upper value {upper} less than lower value {lower} in /get_items_by_filterdb (sql)")
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid parameters: Upper value cannot be less than lower")
             
             blog = db.query(Sales).filter(and_(Sales.price>lower, Sales.price<upper)).all()
             logger.info(f"Successfully returned data having prices from {lower} to {upper} in /get_items_by_filterdb (sql)")
@@ -304,9 +316,6 @@ def multifilterdb(filterby: str, upper: int | None = None, lower: int | None = N
                     lst.append(user)
             logger.info(f"Successfully returned datapoints within radius of {radius}km from location [{latitude},{longitude}] in /get_items_by_filterdb (sql)")
             return [user.__dict__ for user in lst]
-        else:
-            logger.error(f"Invalid filter value ({filterby}) provided in /get_items_by_filterdb (sql)")
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Parameter: Please provide valid filter")
     
     except Exception as e:
         logger.error(f"Error raised in /get_items_by_filterdb: {str(e)} (json)")
