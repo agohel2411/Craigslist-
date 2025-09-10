@@ -54,7 +54,7 @@ def price_sorted(reverse: bool, criteria: str):
 def singleitem(id: str | None = None, long: float | None = None, lat: float | None = None):
     logger.info(f"Hitted /getitem (json): {f'id = {id}' if id  else f'lattitude = {lat}, longitude = {long}'}")
     try:
-        if (not id) or (not lat) or (not long):
+        if (not id) and (not lat) and (not long):
             logger.error("Any parameter not provided in /getitem (josn)")
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid criteria: Provide any one parameter to proceed")
         
@@ -68,8 +68,8 @@ def singleitem(id: str | None = None, long: float | None = None, lat: float | No
 def listitem(status: str | None = None, userid: str | None = None):
     logger.info(f"Hitted /getitemlist (json): {f'status = {status}' if status else f'criteria = {userid}'}")
     try:
-        if (not status) or (not userid):
-            logger.error("Any parameter not provided in /getitemlist")
+        if (not status) and (not userid):
+            logger.error("Any parameter not provided in /getitemlist (json)")
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Criteria: Provide any one parameter (status -- or -- userid) to proceed")
         
         logger.info(f"Successfully returned data of having {status} status and {userid} userId in /getitemlist (josn)")
@@ -121,7 +121,7 @@ def multifilter(filterby: str, upper: int | None = None, lower: int | None = Non
                 logger.error(f"Upper value {upper} less than lower value {lower} in /get_items_by_filter (json)")
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid parameters: Upper value cannot be less than lower")
             
-            logger.info(f"Successfully data returned having prices from {lower} to {upper} in /get_items_by_filter (json)")
+            logger.info(f"Successfully returned data having prices from {lower} to {upper} in /get_items_by_filter (json)")
             return [person for person in data if ((person[filter]>lower) and (person[filter]<upper))]
         
         elif filterby == 'desc':
@@ -129,7 +129,7 @@ def multifilter(filterby: str, upper: int | None = None, lower: int | None = Non
             for person in data:
                 if person['description'] != None:
                     if words in person['description']:
-                        logger.info(f"Successfully returned data containing {words} in description from /get_items_by_filter (json)")
+                        logger.info(f"Successfully returned data containing '{words}' in description from /get_items_by_filter (json)")
                         return person
         elif filterby == 'radius':
             logger.info(f"Hitted /get_items_by_filter (json): filter = {filterby}, radius = {upper}, lower = {lower}")
@@ -170,42 +170,58 @@ def multifilter(filterby: str, upper: int | None = None, lower: int | None = Non
 
 @app.get("/getsorteddatadb", tags=['SQL Db'], status_code=status.HTTP_202_ACCEPTED)
 def pricesorted(reverse: bool, criteria: str, db: Session = Depends(get_db)):
+    logger.info(f"Hitted /getsorteddatadb (sql): reverse = {reverse}, criteria = {criteria}")
     try:
         column = getattr(Sales, criteria)
         order = desc(column) if reverse else column
         sorteddata = db.query(Sales).order_by(order).all()
         if sorteddata:
+            logger.info(f"Successfully returned {'reversed' if reverse else ''} sorted data by {criteria} in /getsorteddatadb (sql)")
             return sorteddata
         else:
+            logger.error(f"Error Raised in /getsorteddatadb: 404 - No data found (sql)")
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No data found")
     except AttributeError:
+        logger.error(f"Criteria provided ({criteria}) in /getsorteddatadb was invalid (sql)")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid sort criteria: {criteria}")
     except Exception as e:
+        logger.error(f"Error raised in /getsorteddatadb: {str(e)} (sql)")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @app.get("/getitemdb", tags=['SQL Db'], status_code=status.HTTP_202_ACCEPTED)
 def singleitem(id: str | None = None, lat: float | None = None, long: float | None = None, db: Session = Depends(get_db)):
+    logger.info(f"Hitted /getitemdb (sql): {f'id = {id}' if id  else f'lattitude = {lat}, longitude = {long}'}")
     try:
-        if (not id) or (not lat) or (not long):
+        if (not id) and (not lat) and (not long):
+            logger.error("Any parameter not provided in /getitemdb (sql)")
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid criteria: Provide any one parameter to proceed")
         blog = db.query(Sales).filter(or_(Sales.id==id, and_(Sales.lat==lat, Sales.long==long))).all()
+
+        logger.info(f"Successfully returned data containing {'id' if id else 'location'} in /getitemdb (sql)")
         return blog
     except Exception as e:
+        logger.error(f"Error raised in /getitemdb: {str(e)} (sql)")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 @app.get("/getitemistdb", tags=['SQL Db'], status_code=status.HTTP_202_ACCEPTED)
 def listitemdb(status: str | None = None, userid: str | None = None, db: Session = Depends(get_db)):
+    logger.info(f"Hitted /getitemlistdb (sql): {f'status = {status}' if status else f'criteria = {userid}'}")
     try:
         blog = db.query(Sales).filter(or_(Sales.status==status, Sales.userId==userid)).all()
         if (not status) and (not userid):
+            logger.error("Any parameter not provided in /getitemlistdb (sql)")
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Criteria: Provide any one parameter (status -- or -- userid) to proceed")
+        
+        logger.info(f"Successfully returned data of having {status} status and {userid} userId in /getitemlistdb (sql)")
         return blog
     except Exception as e:
+        logger.error(f"Error raised in /getitemlistdb:\n {str(e)} (sql)")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
     
 @app.get("/get_items_in_radiusdb", tags=['SQL Db'], status_code=status.HTTP_202_ACCEPTED)
 def radiusdb(radius: float, latitude: float, longitude: float, db: Session = Depends(get_db)):
+    logger.info(f"Hitted /get_items_in_radiusdb (sql): radius = {radius}, latitude = {latitude}, longitude = {longitude}")
     try:    
         R = 6371
 
@@ -231,23 +247,32 @@ def radiusdb(radius: float, latitude: float, longitude: float, db: Session = Dep
             if distance<radius:
                 lst.append(user)
 
+        logger.info(f"Successfully returned datapoints within radius of {radius}km from location [{latitude},{longitude}] in /get_item_in_radiusdb (sql)")
         return [user.__dict__ for user in lst]
     except Exception as e:
+        logger.error(f"Error raised in /get_item_by_radiusdb: {str(e)} (sql)")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
-@app.get("/multifilterdb", tags=['SQL Db'])
-def multifilterdb(filter: str, upper: int | None = None, lower: int | None = None, words: str | None = None, radius: float | None = None, latitude: float | None = None, longitude: float | None = None, db: Session = Depends(get_db)):
+@app.get("/get_items_by_filterdb", tags=['SQL Db'], status_code=status.HTTP_202_ACCEPTED)
+def multifilterdb(filterby: str, upper: int | None = None, lower: int | None = None, words: str | None = None, radius: float | None = None, latitude: float | None = None, longitude: float | None = None, db: Session = Depends(get_db)):
     try:
-        if filter == 'price':
+        if filterby == 'price':
+            logger.info(f"Hitted /get_items_by_filterdb (sql): filter = {filterby}, upper = {upper}, lower = {lower}")
             if lower>upper:
+                logger.error(f"Upper value {upper} less than lower value {lower} in /get_items_by_filterdb (sql)")
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid parameters: Upper value cannot be less than lower")
             
             blog = db.query(Sales).filter(and_(Sales.price>lower, Sales.price<upper)).all()
+            logger.info(f"Successfully returned data having prices from {lower} to {upper} in /get_items_by_filterdb (sql)")
             return blog
-        elif filter == 'desc':
+        elif filterby == 'desc':
+            logger.info(f"Hitted /get_items_by_filterdb (sql): filter = {filterby}, words = {words}")
             blog = db.query(Sales).filter(Sales.description.like(f'%{words}%')).all()
+
+            logger.info(f"Successfully returned data containing '{words}' in description from /get_items_by_filterdb (sql)")
             return blog
-        elif filter == 'radius':
+        elif filterby == 'radius':
+            logger.info(f"Hitted /get_items_by_filterdb (sql): filter = {filterby}, radius = {upper}, lower = {lower}")
             R = 6371
 
             lat1_rad = math.radians(latitude)
@@ -271,11 +296,13 @@ def multifilterdb(filter: str, upper: int | None = None, lower: int | None = Non
 
                 if distance<radius:
                     lst.append(user)
-
+            logger.info(f"Successfully returned datapoints within radius of {radius}km from location [{latitude},{longitude}] in /get_items_by_filterdb (sql)")
             return [user.__dict__ for user in lst]
         else:
+            logger.error(f"Invalid filter value ({filterby}) provided in /get_items_by_filterdb (sql)")
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Parameter: Please provide valid filter")
     
     except Exception as e:
+        logger.error(f"Error raised in /get_items_by_filterdb: {str(e)} (json)")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
         
