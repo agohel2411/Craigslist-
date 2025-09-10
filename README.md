@@ -27,7 +27,7 @@ python3 -m convert.py
 ```
 table.db database file will be added to main folder with sales table.
 
-### To run ap.py fastapi on localhost with port 10001, in your terminal run:
+### To run app.py fastapi on localhost with port 10001, in your terminal run:
 
 ```bash
 uvicorn app:app --port 10001 --reload
