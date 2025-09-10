@@ -1,10 +1,9 @@
 from fastapi import APIRouter
 import math
-from src import model
 from sqlalchemy.orm import Session
 from fastapi import Depends,status
 from src.model import Sales
-from src.database import SessionLocal, engine
+from src.database import SessionLocal
 from fastapi import HTTPException
 from sqlalchemy import desc, or_, and_, func
 from src.log import logger
